@@ -2,7 +2,8 @@ function get_sig_figs(number) {
     let numString = number.toString()
     let sigFigs = numString.length
     for(let i = 0; i < numString.length; i++) {
-        if(numString[i] != '0') { sigFigs -= i; break}
+        if(numString[i] != '0' && numString[i] != '-') { 
+            sigFigs -= i; break}
     }
     if(numString.includes('.')) return sigFigs - 1
     for(let i = numString.length-1; i >= 0; i--) {

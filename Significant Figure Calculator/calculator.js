@@ -1,41 +1,70 @@
 
 const OPERATION = Object.freeze({
     PLUS:   '+',
-    MULTIPLY:  '*'
+    MULTIPLY:  '*',
+    DIVISION:   '/',
+    SUBTRACTION:  '-'
 });
-
+function getLenBeforeDecimal(num){
+    let len = num.toString().split(".")[0].length 
+    if(num.toString().includes('-')) return len-1
+    return len
+}
 const error = {
     toString: () => { return "error" },
     isError: true}
 class ScientificNumber {
     constructor(number) {
         if(!number) return
-        let length = number.toString().split(".")[0].length
+        let length = getLenBeforeDecimal(number)
         this.e = length-1
         this.number = +number / this.powTen
         this.sigFigs = get_sig_figs(number)
     }
+    get roundedSigFigs() { return this.number * this.powTen }
     get normalNumber() { return this.number * this.powTen }
     get calculate() { return this }
     get powTen() { return Math.pow(10, this.e) }
+    readjust(num){
+        let length = getLenBeforeDecimal(num.number)
+        num.e = this.e + (length-1)
+        num.number /= Math.pow(10, length-1)
+    }
     add(otherNum) {
         let newNum = new ScientificNumber
         newNum.number = this.number + (otherNum.number * Math.pow(10, otherNum.e - this.e))
-        let length = newNum.number.toString().split(".")[0].length
-        newNum.e = this.e + (length-1)
-        newNum.number /= Math.pow(10, length-1)
+        this.readjust(newNum)
         return newNum
-    }
+    } 
     multiply(otherNum) {
         let newNum = new ScientificNumber
         newNum.number = this.number * otherNum.number
-        newNum.e = this.e + otherNum.e
+        this.readjust(newNum)
+        newNum.e += otherNum.e
+        return newNum
+    }
+    subtract(otherNum) {
+        let newNum = new ScientificNumber
+        newNum.number = this.number - (otherNum.number * Math.pow(10, otherNum.e - this.e))
+        
+        this.readjust(newNum)
+        return newNum
+    }
+    divide(otherNum) {
+        let newNum = new ScientificNumber
+        newNum.number = this.number / otherNum.number
+        this.readjust(newNum)
+        newNum.e -= otherNum.e
         return newNum
     }
     operate(otherNum, operator){ 
         //console.log(newNum.number)
-        if(operator == OPERATION.PLUS) return this.add(otherNum) 
-        if(operator == OPERATION.MULTIPLY) return this.multiply(otherNum) 
+        switch (operator) {
+            case OPERATION.PLUS: return this.add(otherNum)
+            case OPERATION.SUBTRACTION: return this.subtract(otherNum)
+            case OPERATION.MULTIPLY: return this.multiply(otherNum)
+            case OPERATION.DIVISION: return this.divide(otherNum)
+        }
         return error
     }
     toString() {
@@ -50,6 +79,7 @@ class Operation {
         this.operationType = operationType
     }
     get sigFigs() {
+        
         console.log("SigFig:", this.operation1.sigFigs, this.operation2.sigFigs)
         return Math.min(this.operation1.sigFigs, this.operation2.sigFigs)
     }
@@ -64,8 +94,25 @@ class Operation {
     }
     isError = false
 }
+
 function createOperation(equation){
-    if(equation.includes("+")) return new Operation(equation.split(/\+(.*)/s), OPERATION.PLUS)
+    if(equation.includes("+") || equation.includes("-")) {
+        if(equation.includes('-')){
+            if (!(equation.includes("+") && (equation.indexOf('-') > equation.includes("+")))) {
+                // Checks if the character before the - is a number
+                let charBefore = equation[equation.indexOf('-')-1]
+                console.log("Char", charBefore, +charBefore != NaN && charBefore)
+
+                if(charBefore == "." || +charBefore != NaN && charBefore) {
+                    console.log("Yees")
+                    return new Operation(equation.split(/\-(.*)/s), OPERATION.SUBTRACTION) }
+                // Otherwise its a negative number
+                if(+equation) return new ScientificNumber(equation)
+            }
+        }
+        // If the equation doesn't include a -, or the - is after the +, or the - is a negative number that cant be parsed
+        if(equation.includes("+"))return new Operation(equation.split(/\+(.*)/s), OPERATION.PLUS)
+    } 
     if(equation.includes("*")) return new Operation(equation.split(/\*(.*)/s), OPERATION.MULTIPLY)
     if(+equation != NaN) return new ScientificNumber(equation)
     return error
@@ -87,6 +134,8 @@ function onTextBoxChange() {
     let textbox = document.getElementById("equation")
     let text = document.getElementById("answer")
     let parseEquation = calculate(textbox.value)
+    console.log(parseEquation)
+    console.log(parseEquation.calculate)
     let answer = `${parseEquation.roundedSigFigs} (${parseEquation.sigFigs} significant figures)`
     text.textContent = answer
 }
